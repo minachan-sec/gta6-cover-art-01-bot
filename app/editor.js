@@ -98,12 +98,29 @@ function syncHistoryButtons() {
 
 // ---------------------------------------------------------------- photos
 
+// A fresh placement favors the top of the photo when the panel crops it
+// vertically (faces sit in the upper third); a horizontal crop stays centred.
+function biasCropForPanel(i) {
+  const crop = state.crops[i];
+  const img = state.photos[crop.photo]?.img;
+  if (!img) return;
+  const size = SIZES[state.size];
+  const panel = layoutGeometry(state.layout, size.w, size.h).panels[i];
+  if (!panel) return;
+  const panelAspect = (panel.w * size.w) / (panel.h * size.h);
+  crop.oy = img.naturalWidth / img.naturalHeight < panelAspect ? 0.28 : 0;
+  crop.ox = 0;
+}
+
 function addPhoto(img, name) {
   const index = state.photos.length;
   state.photos.push({ img, name });
   if (index === 0) {
     // First photo fills every panel, so the cover appears at once.
-    for (const crop of state.crops) crop.photo = 0;
+    for (let i = 0; i < state.crops.length; i++) {
+      state.crops[i].photo = 0;
+      biasCropForPanel(i);
+    }
   }
   renderTray();
   render();
@@ -148,6 +165,7 @@ async function loadSamples() {
   // Alternate the two samples across the panels for a varied cover.
   state.crops.forEach((crop, i) => {
     crop.photo = i % 2;
+    biasCropForPanel(i);
   });
   renderTray();
   render();
@@ -205,6 +223,7 @@ function assignPickedToSelected() {
   if (state.photos.length === 0) return;
   pushHistory();
   state.crops[state.selectedPanel].photo = state.pickedPhoto;
+  biasCropForPanel(state.selectedPanel);
   render();
 }
 
@@ -232,7 +251,10 @@ canvas.addEventListener('pointerdown', (event) => {
     pushHistory();
     state.selectedPanel = i;
     // A picked photo drops into the panel just clicked.
-    if (state.photos.length > 0) state.crops[i].photo = state.pickedPhoto;
+    if (state.photos.length > 0) {
+      state.crops[i].photo = state.pickedPhoto;
+      biasCropForPanel(i);
+    }
     render();
   }
   const crop = state.crops[i];

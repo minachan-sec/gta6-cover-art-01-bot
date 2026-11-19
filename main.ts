@@ -5,7 +5,7 @@
 // the kit's buildDossier, exactly as the bounty asks. Outside the grader,
 // MAKEFUN_OUTPUT_DIR stands in for /output. Node 22, standard library only.
 
-import { cpSync, mkdirSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-app.ts';
@@ -14,6 +14,11 @@ const repoRoot = dirname(fileURLToPath(import.meta.url));
 const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
 
 mkdirSync(outDir, { recursive: true });
+// Clear any previous run's output first, so a stale file can never leak
+// into this run: both grader runs must write the same bytes.
+for (const name of ['app', 'screenshots', 'dossier.json']) {
+  rmSync(join(outDir, name), { recursive: true, force: true });
+}
 cpSync(join(repoRoot, 'app'), join(outDir, 'app'), { recursive: true });
 cpSync(join(repoRoot, 'screenshots'), join(outDir, 'screenshots'), { recursive: true });
 writeFileSync(
@@ -25,4 +30,7 @@ writeFileSync(
     app_max_bytes: 50331648,
   }),
 );
-console.log(`Flamingo Key Cover Studio handed in to ${outDir}`);
+console.log(
+  `Flamingo Key Cover Studio handed in to ${outDir} ` +
+    `(dossier ${statSync(join(outDir, 'dossier.json')).size} bytes)`,
+);

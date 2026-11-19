@@ -101,10 +101,10 @@ export function layoutGeometry(layoutId, w, h) {
     case 'tilted':
       return {
         panels: [
-          { x: 0.06, y: 0.20, w: 0.42, h: 0.32, rot: -4 },
-          { x: 0.52, y: 0.17, w: 0.42, h: 0.32, rot: 3 },
-          { x: 0.08, y: 0.56, w: 0.42, h: 0.32, rot: 2.5 },
-          { x: 0.50, y: 0.53, w: 0.42, h: 0.32, rot: -3 },
+          { x: 0.06, y: 0.19, w: 0.42, h: 0.35, rot: -4 },
+          { x: 0.52, y: 0.16, w: 0.42, h: 0.35, rot: 3 },
+          { x: 0.08, y: 0.58, w: 0.42, h: 0.35, rot: 2.5 },
+          { x: 0.50, y: 0.55, w: 0.42, h: 0.35, rot: -3 },
         ],
         title: { x: 0, y: 0.015, w: 1, h: 0.15, align: 'center', overlay: false },
         background: 'sunset',
@@ -299,8 +299,22 @@ function drawCaption(ctx, state, zone, w, h) {
   paintHalftone(ctx, { x: zx, y: zy, w: zw, h: zh }, 'rgba(255, 46, 136, 0.16)', Math.max(2, u * 0.5));
 
   const cx = zx + zw / 2;
+  // Side furniture first: the title must fit between the stars and the
+  // badge, so measure their zones before sizing the type.
+  const starR = Math.max(5, zh * 0.12);
+  const starZone = zw * 0.03 + 5 * starR * 2.15 + zw * 0.02;
+  let badgeZone = 0;
+  let badgeW = 0;
+  let badgePx = 0;
+  if (state.badge) {
+    badgePx = Math.max(10, zh * 0.2);
+    ctx.font = `${badgePx}px Anton, "Arial Black", sans-serif`;
+    badgeW = ctx.measureText(state.badge.toUpperCase()).width + badgePx * 1.6;
+    badgeZone = badgeW + zw * 0.04;
+  }
+  const titleRoom = Math.min(zw * 0.86, zw - starZone - badgeZone);
   const title = (state.title || 'NEON SHORE').toUpperCase();
-  const titlePx = fitFont(ctx, title, zw * 0.86, zh * 0.62, 'Anton, "Arial Black", sans-serif');
+  const titlePx = fitFont(ctx, title, Math.max(80, titleRoom), zh * 0.62, 'Anton, "Arial Black", sans-serif');
   const titleGrad = ctx.createLinearGradient(0, zy + zh * 0.18, 0, zy + zh * 0.82);
   titleGrad.addColorStop(0, '#ffe08a');
   titleGrad.addColorStop(0.45, '#ff9a3c');
@@ -326,16 +340,14 @@ function drawCaption(ctx, state, zone, w, h) {
   }
 
   // Heat meter: five stars at the band's left, badge ribbon at its right.
-  const starR = Math.max(5, zh * 0.14);
   const starY = zy + zh * 0.5;
   for (let i = 0; i < 5; i++) {
-    drawStar(ctx, zx + zw * 0.045 + i * starR * 2.4, starY, starR, i < state.heat);
+    drawStar(ctx, zx + zw * 0.03 + starR + i * starR * 2.15, starY, starR, i < state.heat);
   }
   if (state.badge) {
     const label = state.badge.toUpperCase();
-    const bp = Math.max(10, zh * 0.22);
-    ctx.font = `${bp}px Anton, "Arial Black", sans-serif`;
-    const bw = ctx.measureText(label).width + bp * 1.6;
+    const bp = badgePx;
+    const bw = badgeW;
     const bh = bp * 1.9;
     const bx = zx + zw - bw - zw * 0.02;
     const by = zy + (zh - bh) / 2;
@@ -347,6 +359,7 @@ function drawCaption(ctx, state, zone, w, h) {
     ctx.strokeStyle = 'rgba(255,255,255,0.85)';
     ctx.lineWidth = Math.max(1, u * 0.18);
     ctx.strokeRect(-bw / 2, -bh / 2, bw, bh);
+    ctx.font = `${bp}px Anton, "Arial Black", sans-serif`;
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -382,7 +395,7 @@ export function renderCover(ctx, state, w, h) {
   geo.panels.forEach((panel, i) => {
     const rect = { x: panel.x * w, y: panel.y * h, w: panel.w * w, h: panel.h * h };
     const crop = state.crops[i] ?? freshCrop(0);
-    const img = state.photos[crop.photo];
+    const img = state.photos[crop.photo]?.img;
     ctx.save();
     if (panel.rot) {
       ctx.translate(rect.x + rect.w / 2, rect.y + rect.h / 2);
